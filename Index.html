@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <title>SocialConnect</title>
 
 <style>
@@ -73,7 +74,6 @@ input, textarea {
     color: white;
     border: 1px solid #414766;
     border-radius: 8px;
-    outline: none;
 }
 
 textarea {
@@ -152,8 +152,12 @@ h2, h3 {
 
 <header>
     <div class="logo">SocialConnect</div>
-    <button id="loginBtn" class="primary">Continue with Google</button>
-    <button id="logoutBtn" class="secondary hidden">Logout</button>
+    <button id="loginBtn" class="primary">
+        Continue with Google
+    </button>
+    <button id="logoutBtn" class="secondary hidden">
+        Logout
+    </button>
 </header>
 
 <div id="message">Welcome to SocialConnect</div>
@@ -172,15 +176,24 @@ h2, h3 {
         </div>
 
         <input id="username" placeholder="Choose a username">
-        <textarea id="bio" placeholder="Write something about yourself"></textarea>
 
-        <button class="primary" id="saveProfile">Save Profile</button>
+        <textarea id="bio"
+        placeholder="Write something about yourself"></textarea>
+
+        <button class="primary" id="saveProfile">
+            Save Profile
+        </button>
     </section>
 
     <section id="postSection" class="card hidden">
         <h2>Create a Post</h2>
-        <textarea id="postText" placeholder="What's happening?"></textarea>
-        <button class="primary" id="publishBtn">Publish Post</button>
+
+        <textarea id="postText"
+        placeholder="What's happening?"></textarea>
+
+        <button class="primary" id="publishBtn">
+            Publish Post
+        </button>
     </section>
 
     <section id="feedSection" class="hidden">
@@ -192,7 +205,6 @@ h2, h3 {
 
 <script type="module">
 
-// FIREBASE IMPORTS
 import { initializeApp } from
 "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 
@@ -217,76 +229,87 @@ import {
     orderBy,
     serverTimestamp,
     updateDoc,
-    increment,
-    where
+    increment
 } from
 "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 
-// 1. ADD YOUR FIREBASE CONFIGURATION HERE
+// FIREBASE CONFIGURATION
 
 const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_PROJECT.firebaseapp.com",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_PROJECT.firebasestorage.app",
-    messagingSenderId: "YOUR_SENDER_ID",
-    appId: "YOUR_APP_ID"
+    apiKey: "AIzaSyBvrlr0UdIaKgWZFzWuDbMUuhvl5eeNPcE",
+    authDomain: "socialconnect-81784.firebaseapp.com",
+    projectId: "socialconnect-81784",
+    storageBucket: "socialconnect-81784.firebasestorage.app",
+    messagingSenderId: "914256941810",
+    appId: "1:914256941810:web:c332a6f6ffb97995a4766b",
+    measurementId: "G-2KCDW560FL"
 };
 
 
-// 2. INITIALIZE FIREBASE
+// INITIALIZE FIREBASE
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+
 const provider = new GoogleAuthProvider();
 
 let currentUser = null;
 
 
-// 3. HTML ELEMENTS
+// GOOGLE LOGIN
 
-const loginBtn = document.getElementById("loginBtn");
-const logoutBtn = document.getElementById("logoutBtn");
-const profileSection = document.getElementById("profileSection");
-const postSection = document.getElementById("postSection");
-const feedSection = document.getElementById("feedSection");
-const message = document.getElementById("message");
+document.getElementById("loginBtn")
+.addEventListener("click", async () => {
 
-
-// 4. GOOGLE LOGIN
-
-loginBtn.addEventListener("click", async () => {
     try {
         await signInWithPopup(auth, provider);
     } catch (error) {
         alert("Login failed: " + error.message);
     }
+
 });
 
 
-// 5. LOGOUT
+// LOGOUT
 
-logoutBtn.addEventListener("click", async () => {
-    await signOut(auth);
+document.getElementById("logoutBtn")
+.addEventListener("click", async () => {
+
+    try {
+        await signOut(auth);
+    } catch (error) {
+        alert(error.message);
+    }
+
 });
 
 
-// 6. CHECK LOGIN STATUS
+// AUTHENTICATION CHECK
 
 onAuthStateChanged(auth, async (user) => {
 
     currentUser = user;
 
+    const sections = [
+        "profileSection",
+        "postSection",
+        "feedSection"
+    ];
+
     if (user) {
 
-        loginBtn.classList.add("hidden");
-        logoutBtn.classList.remove("hidden");
+        document.getElementById("loginBtn")
+        .classList.add("hidden");
 
-        profileSection.classList.remove("hidden");
-        postSection.classList.remove("hidden");
-        feedSection.classList.remove("hidden");
+        document.getElementById("logoutBtn")
+        .classList.remove("hidden");
+
+        sections.forEach(id =>
+            document.getElementById(id)
+            .classList.remove("hidden")
+        );
 
         document.getElementById("profilePicture").src =
             user.photoURL || "https://placehold.co/80";
@@ -297,72 +320,105 @@ onAuthStateChanged(auth, async (user) => {
         document.getElementById("profileEmail").textContent =
             user.email || "";
 
-        message.textContent = "Welcome, " + (user.displayName || "User");
+        document.getElementById("message").textContent =
+            "Welcome, " + (user.displayName || "User");
 
         await loadProfile();
         await loadPosts();
 
     } else {
 
-        loginBtn.classList.remove("hidden");
-        logoutBtn.classList.add("hidden");
+        document.getElementById("loginBtn")
+        .classList.remove("hidden");
 
-        profileSection.classList.add("hidden");
-        postSection.classList.add("hidden");
-        feedSection.classList.add("hidden");
+        document.getElementById("logoutBtn")
+        .classList.add("hidden");
 
-        message.textContent = "Sign in to join SocialConnect.";
+        sections.forEach(id =>
+            document.getElementById(id)
+            .classList.add("hidden")
+        );
+
+        document.getElementById("message").textContent =
+            "Sign in to join SocialConnect.";
+
     }
 
 });
 
 
-// 7. SAVE PROFILE
+// LOAD PROFILE
 
 async function loadProfile() {
 
-    const profileRef = doc(db, "users", currentUser.uid);
-    const profileSnap = await getDoc(profileRef);
+    try {
 
-    if (profileSnap.exists()) {
+        const ref = doc(db, "users", currentUser.uid);
+        const snap = await getDoc(ref);
 
-        const data = profileSnap.data();
+        if (snap.exists()) {
 
-        document.getElementById("username").value =
-            data.username || "";
+            const data = snap.data();
 
-        document.getElementById("bio").value =
-            data.bio || "";
+            document.getElementById("username").value =
+                data.username || "";
+
+            document.getElementById("bio").value =
+                data.bio || "";
+
+        }
+
+    } catch (error) {
+        console.error(error);
     }
+
 }
 
-document.getElementById("saveProfile").addEventListener("click", async () => {
 
-    const username = document.getElementById("username").value.trim();
-    const bio = document.getElementById("bio").value.trim();
+// SAVE PROFILE
+
+document.getElementById("saveProfile")
+.addEventListener("click", async () => {
+
+    const username =
+        document.getElementById("username").value.trim();
+
+    const bio =
+        document.getElementById("bio").value.trim();
 
     if (!username) {
         alert("Please choose a username.");
         return;
     }
 
-    await setDoc(doc(db, "users", currentUser.uid), {
-        username,
-        bio,
-        email: currentUser.email,
-        photo: currentUser.photoURL || "",
-        updatedAt: serverTimestamp()
-    }, { merge: true });
+    try {
 
-    alert("Profile saved!");
+        await setDoc(doc(db, "users", currentUser.uid), {
+
+            username: username,
+            bio: bio,
+            email: currentUser.email,
+            photo: currentUser.photoURL || "",
+            updatedAt: serverTimestamp()
+
+        }, { merge: true });
+
+        alert("Profile saved!");
+
+    } catch (error) {
+        alert(error.message);
+    }
+
 });
 
 
-// 8. CREATE POSTS
+// CREATE POST
 
-document.getElementById("publishBtn").addEventListener("click", async () => {
+document.getElementById("publishBtn")
+.addEventListener("click", async () => {
 
-    const text = document.getElementById("postText").value.trim();
+    const text =
+        document.getElementById("postText").value.trim();
 
     if (!text) {
         alert("Write something first.");
@@ -371,19 +427,20 @@ document.getElementById("publishBtn").addEventListener("click", async () => {
 
     try {
 
-        const profileSnap = await getDoc(
+        const profile = await getDoc(
             doc(db, "users", currentUser.uid)
         );
 
-        const profile = profileSnap.exists()
-            ? profileSnap.data()
+        const data = profile.exists()
+            ? profile.data()
             : {};
 
         await addDoc(collection(db, "posts"), {
 
             text: text,
             uid: currentUser.uid,
-            username: profile.username || currentUser.displayName || "User",
+            username: data.username ||
+                currentUser.displayName || "User",
             photo: currentUser.photoURL || "",
             likes: 0,
             createdAt: serverTimestamp()
@@ -395,37 +452,38 @@ document.getElementById("publishBtn").addEventListener("click", async () => {
         await loadPosts();
 
     } catch (error) {
-        alert("Could not publish: " + error.message);
+        alert(error.message);
     }
 
 });
 
 
-// 9. LOAD POSTS
+// LOAD POSTS
 
 async function loadPosts() {
 
-    const postsContainer = document.getElementById("posts");
+    const container = document.getElementById("posts");
 
-    postsContainer.innerHTML = "<p>Loading posts...</p>";
+    container.innerHTML = "Loading posts...";
 
     try {
 
-        const postsQuery = query(
+        const q = query(
             collection(db, "posts"),
             orderBy("createdAt", "desc")
         );
 
-        const snapshot = await getDocs(postsQuery);
+        const snapshot = await getDocs(q);
 
-        postsContainer.innerHTML = "";
+        container.innerHTML = "";
 
         if (snapshot.empty) {
-            postsContainer.innerHTML = "<p>No posts yet. Be the first!</p>";
+            container.textContent =
+                "No posts yet. Be the first!";
             return;
         }
 
-        snapshot.forEach((postDoc) => {
+        snapshot.forEach(postDoc => {
 
             const post = postDoc.data();
             const postId = postDoc.id;
@@ -438,7 +496,6 @@ async function loadPosts() {
 
             const image = document.createElement("img");
             image.src = post.photo || "https://placehold.co/80";
-            image.alt = "Profile picture";
 
             const name = document.createElement("strong");
             name.textContent = post.username || "User";
@@ -448,18 +505,16 @@ async function loadPosts() {
             const content = document.createElement("p");
             content.textContent = post.text || "";
 
-            const likeCount = document.createElement("span");
-            likeCount.textContent = (post.likes || 0) + " likes";
+            const count = document.createElement("span");
+            count.textContent = (post.likes || 0) + " likes";
 
             const actions = document.createElement("div");
             actions.className = "actions";
 
-            const likeButton = document.createElement("button");
-            likeButton.textContent = "👍 Like";
+            const like = document.createElement("button");
+            like.textContent = "👍 Like";
 
-            likeButton.addEventListener("click", () => {
-                likePost(postId);
-            });
+            like.onclick = () => likePost(postId);
 
             const commentButton = document.createElement("button");
             commentButton.textContent = "💬 Comments";
@@ -467,68 +522,77 @@ async function loadPosts() {
             const commentArea = document.createElement("div");
             commentArea.className = "hidden";
 
-            const commentInput = document.createElement("input");
-            commentInput.placeholder = "Write a comment...";
+            const input = document.createElement("input");
+            input.placeholder = "Write a comment...";
 
-            const sendButton = document.createElement("button");
-            sendButton.className = "primary";
-            sendButton.textContent = "Send";
+            const send = document.createElement("button");
+            send.className = "primary";
+            send.textContent = "Send";
 
-            const commentsList = document.createElement("div");
+            const comments = document.createElement("div");
 
-            sendButton.addEventListener("click", async () => {
+            send.onclick = async () => {
 
-                const text = commentInput.value.trim();
+                const text = input.value.trim();
 
                 if (!text) return;
 
-                await addDoc(
-                    collection(db, "posts", postId, "comments"),
-                    {
-                        text,
-                        uid: currentUser.uid,
-                        username: currentUser.displayName || "User",
-                        createdAt: serverTimestamp()
-                    }
-                );
+                try {
 
-                commentInput.value = "";
-                await loadComments(postId, commentsList);
-            });
+                    await addDoc(
+                        collection(db, "posts", postId, "comments"),
+                        {
+                            text: text,
+                            uid: currentUser.uid,
+                            username: currentUser.displayName || "User",
+                            createdAt: serverTimestamp()
+                        }
+                    );
 
-            commentButton.addEventListener("click", async () => {
+                    input.value = "";
+
+                    await loadComments(postId, comments);
+
+                } catch (error) {
+                    alert(error.message);
+                }
+
+            };
+
+            commentButton.onclick = async () => {
+
                 commentArea.classList.toggle("hidden");
-                await loadComments(postId, commentsList);
-            });
 
-            actions.append(likeButton, commentButton);
+                if (!commentArea.classList.contains("hidden")) {
+                    await loadComments(postId, comments);
+                }
 
-            commentArea.append(
-                commentInput,
-                sendButton,
-                commentsList
-            );
+            };
+
+            actions.append(like, commentButton);
+
+            commentArea.append(input, send, comments);
 
             card.append(
                 user,
                 content,
-                likeCount,
+                count,
                 actions,
                 commentArea
             );
 
-            postsContainer.append(card);
+            container.append(card);
 
         });
 
     } catch (error) {
-        postsContainer.textContent = "Error loading posts: " + error.message;
+        container.textContent = error.message;
     }
 
 }
 
 
-// 10. LIKE POSTS
+// LIKE POSTS
 
 async function likePost(postId) {
 
@@ -542,10 +606,10 @@ async function likePost(postId) {
             currentUser.uid
         );
 
-        const existingLike = await getDoc(likeRef);
+        const existing = await getDoc(likeRef);
 
-        if (existingLike.exists()) {
-            alert("You have already liked this post.");
+        if (existing.exists()) {
+            alert("You already liked this post.");
             return;
         }
 
@@ -560,53 +624,61 @@ async function likePost(postId) {
         await loadPosts();
 
     } catch (error) {
-        alert("Like failed: " + error.message);
+        alert(error.message);
     }
 
 }
 
 
-// 11. LOAD COMMENTS
+// LOAD COMMENTS
 
 async function loadComments(postId, container) {
 
-    container.innerHTML = "<p>Loading comments...</p>";
+    container.innerHTML = "Loading comments...";
 
-    const commentsQuery = query(
-        collection(db, "posts", postId, "comments"),
-        orderBy("createdAt", "asc")
-    );
+    try {
 
-    const snapshot = await getDocs(commentsQuery);
+        const q = query(
+            collection(db, "posts", postId, "comments"),
+            orderBy("createdAt", "asc")
+        );
 
-    container.innerHTML = "";
+        const snapshot = await getDocs(q);
 
-    if (snapshot.empty) {
-        container.textContent = "No comments yet.";
-        return;
+        container.innerHTML = "";
+
+        if (snapshot.empty) {
+            container.textContent = "No comments yet.";
+            return;
+        }
+
+        snapshot.forEach(commentDoc => {
+
+            const comment = commentDoc.data();
+
+            const item = document.createElement("div");
+            item.className = "comment";
+
+            const name = document.createElement("strong");
+            name.textContent =
+                (comment.username || "User") + ": ";
+
+            const text = document.createElement("span");
+            text.textContent = comment.text || "";
+
+            item.append(name, text);
+
+            container.append(item);
+
+        });
+
+    } catch (error) {
+        container.textContent = error.message;
     }
-
-    snapshot.forEach(commentDoc => {
-
-        const comment = commentDoc.data();
-
-        const item = document.createElement("div");
-        item.className = "comment";
-
-        const name = document.createElement("strong");
-        name.textContent = (comment.username || "User") + ": ";
-
-        const text = document.createElement("span");
-        text.textContent = comment.text || "";
-
-        item.append(name, text);
-        container.append(item);
-
-    });
 
 }
 
 </script>
 
 </body>
-  </html>
+                </html>

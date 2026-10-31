@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SocialConnect</title>
+
+<style>
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background: #0d1020;
+    color: white;
+}
+
+header {
+    background: #171b32;
+    padding: 17px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+}
+
+.logo {
+    color: #9b7cff;
+    font-size: 23px;
+    font-weight: bold;
+}
+
+button {
+    border: none;
+    padding: 11px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.primary {
+    background: #7958ff;
+    color: white;
+}
+
+.secondary {
+    background: #282d48;
+    color: white;
+}
+
+.container {
+    max-width: 700px;
+    margin: 25px auto;
+    padding: 15px;
+}
+
+.card {
+    background: #171b32;
+    padding: 18px;
+    border-radius: 13px;
+    margin-bottom: 18px;
+}
+
+input, textarea {
+    width: 100%;
+    padding: 13px;
+    margin: 10px 0;
+    background: #252a45;
+    color: white;
+    border: 1px solid #414766;
+    border-radius: 8px;
+    outline: none;
+}
+
+textarea {
+    min-height: 90px;
+    resize: vertical;
+}
+
+.user {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.user img {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.post {
+    background: #202540;
+    padding: 15px;
+    border-radius: 10px;
+    margin-top: 12px;
+}
+
+.post p {
+    margin: 12px 0;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+}
+
+.actions button {
+    background: #343b60;
+    color: white;
+}
+
+.comment {
+    background: #171b32;
+    padding: 9px;
+    margin-top: 8px;
+    border-radius: 7px;
+    font-size: 14px;
+}
+
+.hidden {
+    display: none;
+}
+
+#message {
+    text-align: center;
+    color: #b9a7ff;
+    margin: 15px;
+}
+
+small {
+    color: #aab0ce;
+}
+
+h2, h3 {
+    margin-bottom: 12px;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+    <div class="logo">SocialConnect</div>
+    <button id="loginBtn" class="primary">Continue with Google</button>
+    <button id="logoutBtn" class="secondary hidden">Logout</button>
+</header>
+
+<div id="message">Welcome to SocialConnect</div>
+
+<main class="container">
+
+    <section id="profileSection" class="card hidden">
+        <h2>Your Profile</h2>
+
+        <div class="user">
+            <img id="profilePicture" src="https://placehold.co/80">
+            <div>
+                <h3 id="profileName">User</h3>
+                <small id="profileEmail"></small>
+            </div>
+        </div>
+
+        <input id="username" placeholder="Choose a username">
+        <textarea id="bio" placeholder="Write something about yourself"></textarea>
+
+        <button class="primary" id="saveProfile">Save Profile</button>
+    </section>
+
+    <section id="postSection" class="card hidden">
+        <h2>Create a Post</h2>
+        <textarea id="postText" placeholder="What's happening?"></textarea>
+        <button class="primary" id="publishBtn">Publish Post</button>
+    </section>
+
+    <section id="feedSection" class="hidden">
+        <h2>Community Feed</h2>
+        <div id="posts"></div>
+    </section>
+
+</main>
+
+<script type="module">
+
+// FIREBASE IMPORTS
+import { initializeApp } from
+"https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+
+import {
+    getAuth,
+    GoogleAuthProvider,
+    signInWithPopup,
+    signOut,
+    onAuthStateChanged
+} from
+"https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+import {
+    getFirestore,
+    doc,
+    setDoc,
+    getDoc,
+    collection,
+    addDoc,
+    getDocs,
+    query,
+    orderBy,
+    serverTimestamp,
+    updateDoc,
+    increment,
+    where
+} from
+"https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+
+// 1. ADD YOUR FIREBASE CONFIGURATION HERE
+
+const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT.firebaseapp.com",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT.firebasestorage.app",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId: "YOUR_APP_ID"
+};
+
+
+// 2. INITIALIZE FIREBASE
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const provider = new GoogleAuthProvider();
+
+let currentUser = null;
+
+
+// 3. HTML ELEMENTS
+
+const loginBtn = document.getElementById("loginBtn");
+const logoutBtn = document.getElementById("logoutBtn");
+const profileSection = document.getElementById("profileSection");
+const postSection = document.getElementById("postSection");
+const feedSection = document.getElementById("feedSection");
+const message = document.getElementById("message");
+
+
+// 4. GOOGLE LOGIN
+
+loginBtn.addEventListener("click", async () => {
+    try {
+        await signInWithPopup(auth, provider);
+    } catch (error) {
+        alert("Login failed: " + error.message);
+    }
+});
+
+
+// 5. LOGOUT
+
+logoutBtn.addEventListener("click", async () => {
+    await signOut(auth);
+});
+
+
+// 6. CHECK LOGIN STATUS
+
+onAuthStateChanged(auth, async (user) => {
+
+    currentUser = user;
+
+    if (user) {
+
+        loginBtn.classList.add("hidden");
+        logoutBtn.classList.remove("hidden");
+
+        profileSection.classList.remove("hidden");
+        postSection.classList.remove("hidden");
+        feedSection.classList.remove("hidden");
+
+        document.getElementById("profilePicture").src =
+            user.photoURL || "https://placehold.co/80";
+
+        document.getElementById("profileName").textContent =
+            user.displayName || "User";
+
+        document.getElementById("profileEmail").textContent =
+            user.email || "";
+
+        message.textContent = "Welcome, " + (user.displayName || "User");
+
+        await loadProfile();
+        await loadPosts();
+
+    } else {
+
+        loginBtn.classList.remove("hidden");
+        logoutBtn.classList.add("hidden");
+
+        profileSection.classList.add("hidden");
+        postSection.classList.add("hidden");
+        feedSection.classList.add("hidden");
+
+        message.textContent = "Sign in to join SocialConnect.";
+    }
+
+});
+
+
+// 7. SAVE PROFILE
+
+async function loadProfile() {
+
+    const profileRef = doc(db, "users", currentUser.uid);
+    const profileSnap = await getDoc(profileRef);
+
+    if (profileSnap.exists()) {
+
+        const data = profileSnap.data();
+
+        document.getElementById("username").value =
+            data.username || "";
+
+        document.getElementById("bio").value =
+            data.bio || "";
+    }
+}
+
+document.getElementById("saveProfile").addEventListener("click", async () => {
+
+    const username = document.getElementById("username").value.trim();
+    const bio = document.getElementById("bio").value.trim();
+
+    if (!username) {
+        alert("Please choose a username.");
+        return;
+    }
+
+    await setDoc(doc(db, "users", currentUser.uid), {
+        username,
+        bio,
+        email: currentUser.email,
+        photo: currentUser.photoURL || "",
+        updatedAt: serverTimestamp()
+    }, { merge: true });
+
+    alert("Profile saved!");
+});
+
+
+// 8. CREATE POSTS
+
+document.getElementById("publishBtn").addEventListener("click", async () => {
+
+    const text = document.getElementById("postText").value.trim();
+
+    if (!text) {
+        alert("Write something first.");
+        return;
+    }
+
+    try {
+
+        const profileSnap = await getDoc(
+            doc(db, "users", currentUser.uid)
+        );
+
+        const profile = profileSnap.exists()
+            ? profileSnap.data()
+            : {};
+
+        await addDoc(collection(db, "posts"), {
+
+            text: text,
+            uid: currentUser.uid,
+            username: profile.username || currentUser.displayName || "User",
+            photo: currentUser.photoURL || "",
+            likes: 0,
+            createdAt: serverTimestamp()
+
+        });
+
+        document.getElementById("postText").value = "";
+
+        await loadPosts();
+
+    } catch (error) {
+        alert("Could not publish: " + error.message);
+    }
+
+});
+
+
+// 9. LOAD POSTS
+
+async function loadPosts() {
+
+    const postsContainer = document.getElementById("posts");
+
+    postsContainer.innerHTML = "<p>Loading posts...</p>";
+
+    try {
+
+        const postsQuery = query(
+            collection(db, "posts"),
+            orderBy("createdAt", "desc")
+        );
+
+        const snapshot = await getDocs(postsQuery);
+
+        postsContainer.innerHTML = "";
+
+        if (snapshot.empty) {
+            postsContainer.innerHTML = "<p>No posts yet. Be the first!</p>";
+            return;
+        }
+
+        snapshot.forEach((postDoc) => {
+
+            const post = postDoc.data();
+            const postId = postDoc.id;
+
+            const card = document.createElement("div");
+            card.className = "post";
+
+            const user = document.createElement("div");
+            user.className = "user";
+
+            const image = document.createElement("img");
+            image.src = post.photo || "https://placehold.co/80";
+            image.alt = "Profile picture";
+
+            const name = document.createElement("strong");
+            name.textContent = post.username || "User";
+
+            user.append(image, name);
+
+            const content = document.createElement("p");
+            content.textContent = post.text || "";
+
+            const likeCount = document.createElement("span");
+            likeCount.textContent = (post.likes || 0) + " likes";
+
+            const actions = document.createElement("div");
+            actions.className = "actions";
+
+            const likeButton = document.createElement("button");
+            likeButton.textContent = "👍 Like";
+
+            likeButton.addEventListener("click", () => {
+                likePost(postId);
+            });
+
+            const commentButton = document.createElement("button");
+            commentButton.textContent = "💬 Comments";
+
+            const commentArea = document.createElement("div");
+            commentArea.className = "hidden";
+
+            const commentInput = document.createElement("input");
+            commentInput.placeholder = "Write a comment...";
+
+            const sendButton = document.createElement("button");
+            sendButton.className = "primary";
+            sendButton.textContent = "Send";
+
+            const commentsList = document.createElement("div");
+
+            sendButton.addEventListener("click", async () => {
+
+                const text = commentInput.value.trim();
+
+                if (!text) return;
+
+                await addDoc(
+                    collection(db, "posts", postId, "comments"),
+                    {
+                        text,
+                        uid: currentUser.uid,
+                        username: currentUser.displayName || "User",
+                        createdAt: serverTimestamp()
+                    }
+                );
+
+                commentInput.value = "";
+                await loadComments(postId, commentsList);
+            });
+
+            commentButton.addEventListener("click", async () => {
+                commentArea.classList.toggle("hidden");
+                await loadComments(postId, commentsList);
+            });
+
+            actions.append(likeButton, commentButton);
+
+            commentArea.append(
+                commentInput,
+                sendButton,
+                commentsList
+            );
+
+            card.append(
+                user,
+                content,
+                likeCount,
+                actions,
+                commentArea
+            );
+
+            postsContainer.append(card);
+
+        });
+
+    } catch (error) {
+        postsContainer.textContent = "Error loading posts: " + error.message;
+    }
+
+}
+
+
+// 10. LIKE POSTS
+
+async function likePost(postId) {
+
+    try {
+
+        const likeRef = doc(
+            db,
+            "posts",
+            postId,
+            "likes",
+            currentUser.uid
+        );
+
+        const existingLike = await getDoc(likeRef);
+
+        if (existingLike.exists()) {
+            alert("You have already liked this post.");
+            return;
+        }
+
+        await setDoc(likeRef, {
+            uid: currentUser.uid
+        });
+
+        await updateDoc(doc(db, "posts", postId), {
+            likes: increment(1)
+        });
+
+        await loadPosts();
+
+    } catch (error) {
+        alert("Like failed: " + error.message);
+    }
+
+}
+
+
+// 11. LOAD COMMENTS
+
+async function loadComments(postId, container) {
+
+    container.innerHTML = "<p>Loading comments...</p>";
+
+    const commentsQuery = query(
+        collection(db, "posts", postId, "comments"),
+        orderBy("createdAt", "asc")
+    );
+
+    const snapshot = await getDocs(commentsQuery);
+
+    container.innerHTML = "";
+
+    if (snapshot.empty) {
+        container.textContent = "No comments yet.";
+        return;
+    }
+
+    snapshot.forEach(commentDoc => {
+
+        const comment = commentDoc.data();
+
+        const item = document.createElement("div");
+        item.className = "comment";
+
+        const name = document.createElement("strong");
+        name.textContent = (comment.username || "User") + ": ";
+
+        const text = document.createElement("span");
+        text.textContent = comment.text || "";
+
+        item.append(name, text);
+        container.append(item);
+
+    });
+
+}
+
+</script>
+
+</body>
+  </html>

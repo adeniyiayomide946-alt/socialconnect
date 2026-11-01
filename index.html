@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#111827"><title>Social Connects</title>
+<style>
+:root{--bg:#f4f6fb;--card:#fff;--ink:#182235;--muted:#687386;--line:#e5e9f0;--blue:#3458d4;--pale:#edf1ff}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px system-ui,Arial,sans-serif}
+header{background:#111827;color:white;padding:15px 18px;position:sticky;top:0;z-index:3}.bar{max-width:1000px;margin:auto;display:flex;justify-content:space-between;align-items:center;gap:12px}.logo{font-size:21px;font-weight:800}.logo span{color:#9db2ff}
+button,input,textarea{font:inherit}button{border:0;border-radius:10px;padding:10px 14px;background:var(--blue);color:white;font-weight:650;cursor:pointer}button.soft{background:var(--pale);color:#2948ae}button.line{background:transparent;border:1px solid var(--line);color:inherit}
+main{max-width:1000px;margin:22px auto;padding:0 14px;display:grid;grid-template-columns:240px 1fr;gap:18px}.card{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:16px;box-shadow:0 4px 18px #18223508}.hidden{display:none!important}
+.auth{max-width:420px;margin:9vh auto;text-align:center;padding:32px 22px}.muted{color:var(--muted);font-size:13px}.profile{display:flex;gap:10px;align-items:center}.avatar{width:42px;height:42px;border-radius:50%;object-fit:cover;background:#e8ecf5;display:grid;place-items:center;font-weight:800}
+nav{display:grid;gap:7px;margin-top:15px}nav button{text-align:left;background:transparent;color:var(--ink)}nav button.active{background:var(--pale);color:#2948ae}
+.stack{display:grid;gap:14px}textarea,input{width:100%;border:1px solid var(--line);border-radius:10px;padding:11px;background:white;color:var(--ink)}textarea{min-height:95px;resize:vertical}.row{display:flex;gap:8px;align-items:center}.between{justify-content:space-between}
+.post{padding:16px}.postbody{white-space:pre-wrap;overflow-wrap:anywhere;margin:13px 0}.actions{border-top:1px solid var(--line);padding-top:10px;display:flex;gap:8px}.actions button{font-size:13px;padding:7px 11px}.commentrow{display:flex;gap:7px;margin-top:9px}.commentrow input{flex:1;min-width:0}.comment{border-top:1px solid var(--line);padding:8px 0;font-size:13px}
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#111827;color:white;padding:10px 15px;border-radius:10px;display:none;z-index:9}
+@media(max-width:700px){main{grid-template-columns:1fr;margin:14px auto}nav{grid-template-columns:repeat(3,1fr)}nav button{text-align:center;padding:8px 4px;font-size:13px}}
+</style>
+</head>
+<body>
+<header><div class="bar"><div class="logo">Social <span>Connects</span></div><div class="row"><span id="signedName" class="muted" style="color:#cbd5e1"></span><button id="logout" class="line hidden">Sign out</button></div></div></header>
+<section id="login" class="card auth"><div style="font-size:40px">✦</div><h1>Welcome to Social Connects</h1><p class="muted">Share updates and stay connected.</p><button id="google" style="width:100%">Continue with Google</button><p class="muted">Be respectful. Avoid sharing private or sensitive information.</p></section>
+<main id="appview" class="hidden">
+<aside class="card"><div class="profile"><img id="photo" class="avatar" alt=""><div><b id="myname">Your profile</b><div id="email" class="muted"></div></div></div><p id="bio" class="muted">Welcome to your profile.</p><button id="edit" class="soft" style="width:100%">Edit profile</button>
+<nav><button class="active" data-tab="feed">⌂ Feed</button><button data-tab="discover">⌕ Discover</button><button data-tab="mine">♙ My posts</button></nav></aside>
+<section class="stack">
+<div id="feedTab" class="stack"><div class="card"><h3 style="margin-top:0">Create a post</h3><textarea id="postText" maxlength="1200" placeholder="What's on your mind?"></textarea><div class="row between" style="margin-top:9px"><span class="muted"><span id="count">0</span>/1200</span><button id="publish">Publish</button></div></div><div id="feed" class="stack"><div class="card">Loading feed…</div></div></div>
+<div id="discoverTab" class="card hidden"><h3>Discover people</h3><input id="search" placeholder="Search by display name or username"><div id="people" style="margin-top:12px"></div></div>
+<div id="mineTab" class="stack hidden"><div class="card"><h3 style="margin:0">My posts</h3></div><div id="myPosts" class="stack"></div></div>
+</section></main>
+<div id="modal" class="hidden" style="position:fixed;inset:0;background:#10182899;z-index:5;padding:18px"><div class="card" style="max-width:420px;margin:8vh auto"><div class="row between"><h3>Edit profile</h3><button id="close" class="line">✕</button></div><label class="muted">Display name</label><input id="nameInput" maxlength="40"><label class="muted">Username</label><input id="userInput" maxlength="24" placeholder="your_username"><label class="muted">Bio</label><textarea id="bioInput" maxlength="160" style="min-height:70px"></textarea><button id="save" style="width:100%;margin-top:10px">Save</button></div></div>
+<div id="toast"></div>
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {getAuth,GoogleAuthProvider,signInWithPopup,onAuthStateChanged,signOut} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {getFirestore,doc,getDoc,setDoc,updateDoc,collection,addDoc,deleteDoc,query,orderBy,limit,onSnapshot,getDocs,serverTimestamp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+const firebaseConfig={
+ apiKey:"AIzaSyBvrlr0UdIaKgWZFzWuDbMUuhvl5eeNPcE",
+ authDomain:"socialconnect-81784.firebaseapp.com",
+ projectId:"socialconnect-81784",
+ storageBucket:"socialconnect-81784.firebasestorage.app",
+ messagingSenderId:"914256941810",
+ appId:"1:914256941810:web:c332a6f6ffb97995a4766b",
+ measurementId:"G-2KCDW560FL"
+};
+const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);
+const $=id=>document.getElementById(id);let user=null,profile=null,stopFeed=null;
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function toast(s){$("toast").textContent=s;$("toast").style.display="block";setTimeout(()=>$("toast").style.display="none",2800)}
+function profileDoc(uid){return doc(db,"users",uid)}
+function renderProfile(){$("myname").textContent=profile.displayName||"User";$("email").textContent=user.email||"";$("bio").textContent=profile.bio||"Welcome to your profile.";$("signedName").textContent=profile.displayName||"";if(profile.photoURL)$("photo").src=profile.photoURL;else $("photo").removeAttribute("src")}
+async function loadProfile(u){const r=profileDoc(u.uid),s=await getDoc(r);if(s.exists())profile=s.data();else{profile={uid:u.uid,displayName:u.displayName||"New user",username:"",bio:"",photoURL:u.photoURL||""};await setDoc(r,profile)}renderProfile()}
+$("google").onclick=async()=>{try{await signInWithPopup(auth,new GoogleAuthProvider())}catch(e){toast(e.message)}};
+$("logout").onclick=()=>signOut(auth);
+onAuthStateChanged(auth,async u=>{user=u;if(!u){$("login").classList.remove("hidden");$("appview").classList.add("hidden");$("logout").classList.add("hidden");if(stopFeed)stopFeed();return}
+$("login").classList.add("hidden");$("appview").classList.remove("hidden");$("logout").classList.remove("hidden");
+try{await loadProfile(u);listenFeed()}catch(e){toast("Firebase error: "+e.message)}});
+$("postText").oninput=()=>$("count").textContent=$("postText").value.length;
+$("publish").onclick=async()=>{let body=$("postText").value.trim();if(!body)return toast("Write something first.");$("publish").disabled=true;try{await addDoc(collection(db,"posts"),{uid:user.uid,authorName:profile.displayName,username:profile.username||"",photoURL:profile.photoURL||"",body,likes:[],createdAt:serverTimestamp()});$("postText").value="";$("count").textContent="0";toast("Post published.")}catch(e){toast(e.message)}finally{$("publish").disabled=false}};
+function dateText(ts){try{return ts.toDate().toLocaleString()}catch{return "Just now"}}
+function card(p,id){let liked=(p.likes||[]).includes(user.uid);return `<article class="card post" data-id="${esc(id)}"><div class="row between"><div class="profile"><div class="avatar">${esc((p.authorName||"U").charAt(0).toUpperCase())}</div><div><b>${esc(p.authorName||"User")}</b><div class="muted">${p.username?"@"+esc(p.username)+" · ":""}${esc(dateText(p.createdAt))}</div></div></div>${p.uid===user.uid?'<button class="line delete">Delete</button>':''}</div><div class="postbody">${esc(p.body)}</div><div class="actions"><button class="soft like">${liked?"♥":"♡"} ${p.likes?.length||0} Like</button><button class="line toggle">Comment</button></div><div class="comments hidden"><div class="commentlist muted">Loading comments…</div><div class="commentrow"><input class="commentinput" maxlength="300" placeholder="Write a comment"><button class="send">Send</button></div></div></article>`}
+function listenFeed(){if(stopFeed)stopFeed();stopFeed=onSnapshot(query(collection(db,"posts"),orderBy("createdAt","desc"),limit(50)),s=>{let docs=s.docs;$("feed").innerHTML=docs.map(d=>card(d.data(),d.id)).join("")||'<div class="card">No posts yet. Start the conversation.</div>';$("myPosts").innerHTML=docs.filter(d=>d.data().uid===user.uid).map(d=>card(d.data(),d.id)).join("")||'<div class="card">You have not posted yet.</div>'},e=>{$("feed").innerHTML=`<div class="card">Feed error: ${esc(e.message)}</div>`})}
+document.addEventListener("click",async e=>{let el=e.target.closest("[data-id]");if(!el)return;let id=el.dataset.id,ref=doc(db,"posts",id);try{
+if(e.target.closest(".like")){let s=await getDoc(ref),a=s.data().likes||[],next=a.includes(user.uid)?a.filter(x=>x!==user.uid):[...a,user.uid];await updateDoc(ref,{likes:next})}
+if(e.target.closest(".delete")){if(confirm("Delete this post?"))await deleteDoc(ref)}
+if(e.target.closest(".toggle")){let box=el.querySelector(".comments");box.classList.toggle("hidden");if(!box.classList.contains("hidden"))await showComments(el,id)}
+if(e.target.closest(".send")){let input=el.querySelector(".commentinput"),body=input.value.trim();if(!body)return;await addDoc(collection(db,"posts",id,"comments"),{uid:user.uid,authorName:profile.displayName,body,createdAt:serverTimestamp()});input.value="";await showComments(el,id)}
+}catch(err){toast(err.message)}});
+async function showComments(el,id){let s=await getDocs(query(collection(db,"posts",id,"comments"),orderBy("createdAt","asc"),limit(30)));el.querySelector(".commentlist").innerHTML=s.docs.map(d=>`<div class="comment"><b>${esc(d.data().authorName)}</b> ${esc(d.data().body)}</div>`).join("")||"No comments yet."}
+document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{document.querySelectorAll("[data-tab]").forEach(x=>x.classList.toggle("active",x===b));["feed","discover","mine"].forEach(t=>$(t+"Tab").classList.toggle("hidden",t!==b.dataset.tab))});
+$("edit").onclick=()=>{$("nameInput").value=profile.displayName||"";$("userInput").value=profile.username||"";$("bioInput").value=profile.bio||"";$("modal").classList.remove("hidden")};
+$("close").onclick=()=>$("modal").classList.add("hidden");
+$("save").onclick=async()=>{let displayName=$("nameInput").value.trim(),username=$("userInput").value.trim().toLowerCase().replace(/[^a-z0-9_]/g,""),bio=$("bioInput").value.trim();if(!displayName)return toast("Enter a display name.");try{await updateDoc(profileDoc(user.uid),{displayName,username,bio});profile={...profile,displayName,username,bio};renderProfile();$("modal").classList.add("hidden");toast("Profile updated.")}catch(e){toast(e.message)}};
+$("search").oninput=async()=>{let term=$("search").value.trim().toLowerCase();if(term.length<2){$("people").innerHTML='<p class="muted">Type at least 2 letters to search.</p>';return}try{let s=await getDocs(query(collection(db,"users"),limit(60))),matches=s.docs.map(d=>d.data()).filter(p=>p.uid!==user.uid&&((p.displayName||"").toLowerCase().includes(term)||(p.username||"").toLowerCase().includes(term)));$("people").innerHTML=matches.map(p=>`<div class="profile" style="padding:9px 0;border-bottom:1px solid #e5e9f0"><div class="avatar">${esc((p.displayName||"U").charAt(0))}</div><div><b>${esc(p.displayName)}</b><div class="muted">${p.username?"@"+esc(p.username):""}</div></div></div>`).join("")||'<p class="muted">No profiles found.</p>'}catch(e){toast(e.message)}};
+</script>
+</body></html>
